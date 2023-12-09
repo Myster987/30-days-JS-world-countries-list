@@ -35,9 +35,15 @@ const searchForCoutryData = (countryName, data) => {
     }
 };
 
-const createCards = (data) => {
-    setTimeout(() => loading(), 2000);
+const createCards = (data, delay = 2000) => {
+    if (delay > 0) {
+        setTimeout(() => loading(), delay);
+    }
     const countriesContainer = document.getElementById("countries-container");
+    const saveDialog = countriesContainer.children[0];
+
+    countriesContainer.innerHTML = "";
+    countriesContainer.appendChild(saveDialog);
 
     for (const country of data) {
         const card = document.createElement("div");
@@ -48,9 +54,9 @@ const createCards = (data) => {
         card.addEventListener("click", (e) => {
             const countryName = e.target.textContent;
             const dataOfCountry = searchForCoutryData(countryName, countriesData);
-            const dialog = document.querySelector("#show-country-data");
-
+            const dialog = document.getElementById("show-country-data");
             const flag = document.getElementById("flag");
+
             flag.src = dataOfCountry.flags.svg;
             flag.alt = `Flag of ${countryName}`;
 
@@ -76,8 +82,6 @@ const createCards = (data) => {
         });
         countriesContainer.appendChild(card);
     }
-
-    document.getElementById("total-countries").textContent = `Total Number of countries: ${data.length}`;
 };
 
 const loading = () => {
@@ -86,7 +90,33 @@ const loading = () => {
     container.classList.remove("loading");
 };
 
-let countriesData;
+const searchCoutries = (data, toSearch, mode="firstWord") => {
+    const result = [];
+    toSearch = toSearch.toLowerCase();
+
+    for (const country of data) {
+        let index;
+
+        if (mode == "firstWord") {
+            let coutryName = country.name.toLowerCase();
+            let indexOfSpace = coutryName.indexOf(" ");
+            index = (indexOfSpace == -1 ? coutryName : coutryName.substring(0, indexOfSpace)).indexOf(toSearch);
+        } else {
+            index = country.name.toLowerCase().indexOf(toSearch);
+        }
+
+        if (index != -1) {
+            result.push({coutry: country, index: index});
+        }
+    }
+
+    return result.sort((a, b) => a.index - b.index).map((val) => val.coutry);
+};
+
+let countriesData = [];
+let searchResult = [];
+let mode = "firstWord"
+let currentlyFocused = document.getElementById("starting-word");
 
 fetchCountriesData()
                 .then(res => {
@@ -94,4 +124,39 @@ fetchCountriesData()
                     createCards(res);
                     const hiddenElements = document.querySelectorAll(".hidden");
                     hiddenElements.forEach((el) => observer.observe(el));
+                    document.getElementById("total-countries").textContent = `Total Number of countries: ${res.length}`;
                 });
+
+const searchBtn = document.querySelector(".search-icon-container");
+searchBtn.onclick = () => {
+    if (!countriesData.length) return;
+
+    
+    searchResult = searchCoutries(countriesData, document.getElementById("search-input").value, mode);
+    console.log(searchResult);
+    createCards(searchResult, 0);
+    const hiddenElements = document.querySelectorAll(".hidden");
+    hiddenElements.forEach((el) => observer.observe(el));
+};
+
+document.getElementById("starting-word").onclick = (e) => {
+    currentlyFocused.classList.remove("selected");
+    currentlyFocused = e.target;
+    mode = "firstWord";
+    currentlyFocused.classList.add("selected");
+};
+
+document.getElementById("search-by-any-word").onclick = (e) => {
+    currentlyFocused.classList.remove("selected");
+    currentlyFocused = e.target;
+    mode = "anyWord";
+    currentlyFocused.classList.add("selected");
+};
+
+document.getElementById("sort-by").onclick = () => {
+    const data = document.getElementById("countries-container");
+
+    for (let i = 1; i < data.childNodes.length; i++){
+        data.insertBefore(data.childNodes[i], data.childNodes[1]);
+    }
+};
